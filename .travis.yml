@@ -4,3 +4,4 @@ go:
   - 1.0
   - tip
 script: go test
+install: go get -d -v .

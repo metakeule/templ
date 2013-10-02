@@ -3,8 +3,11 @@ package templ
 import (
 	"bytes"
 	"fmt"
+	"github.com/metakeule/meta"
 	"github.com/metakeule/replacer"
 	"io"
+	"reflect"
+	"strings"
 )
 
 // a named buffer, fullfills the Setter interface
@@ -22,6 +25,88 @@ func newBuffer(name string) *Buffer {
 
 func (b *Buffer) Name() string {
 	return b.name
+}
+
+type Escaper map[string]func(interface{}) string
+
+type View struct {
+	_type         string
+	_tag          string
+	_placeholders map[string]Placeholder
+}
+
+func (esc Escaper) View(stru interface{}, tag string) *View {
+	s := &View{_type: structName(stru), _tag: tag}
+	s.scanPlaceholders(stru, esc)
+	return s
+}
+
+func structName(stru interface{}) string {
+	return strings.Replace(fmt.Sprintf("%T", stru), "*", "", 1)
+}
+
+func (str *View) Tag() string  { return str._tag }
+func (str *View) Type() string { return str._type }
+
+func (str *View) Placeholder(field string) Placeholder {
+	p, ok := str._placeholders[field]
+	if !ok {
+		panic(fmt.Sprintf("no placeholder for field %s in struct %s (tag: %s)", field, str._type, str._tag))
+	}
+	return p
+}
+
+func (str *View) HasPlaceholder(field string) bool {
+	_, ok := str._placeholders[field]
+	return ok
+}
+
+func (str *View) Set(stru interface{}) (ss []Setter) {
+	if structName(stru) != str._type {
+		panic(fmt.Sprintf("wrong type: %T, needed %s or *%s", stru, str._type, str._type))
+	}
+	for field, ph := range str._placeholders {
+		f := meta.Struct.Field(stru, field)
+		// we need to handle the nil pointers differently,
+		// since they may be handled via interfaces
+		// and then they are not nil
+		if f.Kind() == reflect.Ptr && f.IsNil() {
+			ss = append(ss, ph.Set(nil))
+			continue
+		}
+		ss = append(ss, ph.Set(f.Interface()))
+	}
+	return
+}
+
+func (str *View) scanPlaceholders(stru interface{}, escaper Escaper) {
+	str._placeholders = map[string]Placeholder{}
+	meta.Struct.EachRaw(stru,
+		func(field reflect.StructField, v reflect.Value) {
+			phName := fieldName(stru, field.Name, str._tag)
+			ph := NewPlaceholder(phName)
+			if t := field.Tag.Get(str._tag); t != "" {
+				if t != "-" { // "-" signals ignorance
+					for _, escaperKey := range strings.Split(t, ",") {
+						escFunc, ok := escaper[escaperKey]
+						if !ok {
+							panic("unknown escaper " + escaperKey + " needed by " + phName)
+						}
+						ph.Escaper = append(ph.Escaper, escFunc)
+					}
+					str._placeholders[field.Name] = ph
+				}
+				return
+			}
+
+			escFunc, ok := escaper[""]
+			if !ok {
+				panic(`missing empty escaper (key: "") needed by ` + phName)
+			}
+			ph.Escaper = append(ph.Escaper, escFunc)
+			str._placeholders[field.Name] = ph
+		})
+	return
 }
 
 type Placeholder struct {
@@ -213,6 +298,44 @@ func (t *Template) MustParse() *Template {
 	return t
 }
 
+func mixedSetters(mixed ...interface{}) (ss []Setter) {
+	for _, m := range mixed {
+		switch v := m.(type) {
+		case View:
+			ss = append(ss, v.Set(v)...)
+		case *View:
+			ss = append(ss, v.Set(v)...)
+		case Setter:
+			ss = append(ss, v)
+		case []Setter:
+			ss = append(ss, v...)
+		default:
+			panic(fmt.Sprintf("unsupported type: %T, supported are: View, *View, Setter and []Setter", v))
+		}
+	}
+	return
+}
+
+func (r *Template) ReplaceMixed(mixed ...interface{}) (bf *Buffer, errors map[string]error) {
+	ss := mixedSetters(mixed...)
+	return r.Replace(ss...)
+}
+
+func (r *Template) ReplaceMixedTo(b *bytes.Buffer, mixed ...interface{}) (bf *Buffer, errors map[string]error) {
+	ss := mixedSetters(mixed...)
+	return r.ReplaceTo(b, ss...)
+}
+
+func (r *Template) MustReplaceMixed(mixed ...interface{}) (bf *Buffer) {
+	ss := mixedSetters(mixed...)
+	return r.MustReplace(ss...)
+}
+
+func (r *Template) MustReplaceMixedTo(b *bytes.Buffer, mixed ...interface{}) (bf *Buffer) {
+	ss := mixedSetters(mixed...)
+	return r.MustReplaceTo(b, ss...)
+}
+
 func (r *Template) ReplaceTo(b *bytes.Buffer, setters ...Setter) (bf *Buffer, errors map[string]error) {
 	m := map[string]io.WriterTo{}
 	for _, s := range setters {
@@ -235,17 +358,6 @@ func (r *Template) MustReplaceTo(b *bytes.Buffer, setters ...Setter) *Buffer {
 	return bf
 }
 
-/*
-// call function callback n times and writing the returned setters
-// to the template
-func (r *Template) For(n int, callback func(int) []Setter) *Buffer {
-	bf := NewBuffer(r.Name())
-	for i := 0; i < n; i++ {
-		r.MustReplaceTo(bf.Buffer, callback(i)...)
-	}
-	return bf
-}
-*/
 // calls Must with a new buffer for every
 func (r *Template) Replace(setters ...Setter) (bf *Buffer, errors map[string]error) {
 	b := bytes.Buffer{}
@@ -256,4 +368,20 @@ func (r *Template) Replace(setters ...Setter) (bf *Buffer, errors map[string]err
 func (r *Template) MustReplace(setters ...Setter) (bf *Buffer) {
 	b := bytes.Buffer{}
 	return r.MustReplaceTo(&b, setters...)
+}
+
+/*
+// returns a fieldname as used in placeholders of structs
+func FieldName(stru interface{}, field string) string {
+	f := meta.Struct.Field(stru, field)
+	r := fieldName(stru, field)
+	if f.Interface() == nil {
+		panic("field does not exist: " + r)
+	}
+	return r
+}
+*/
+
+func fieldName(stru interface{}, field string, tag string) string {
+	return strings.Replace(fmt.Sprintf("%T.%s#%s", stru, field, tag), "*", "", 1)
 }
