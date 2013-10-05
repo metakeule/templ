@@ -1,5 +1,16 @@
 package benchmark
 
+/*
+	TODO:
+
+	make benchmarks against the template engine from go:
+
+	- conditions (if)
+	- iterations (for)
+	- escaping (html)
+	- embedding of templates
+*/
+
 import (
 	"bytes"
 	"fmt"

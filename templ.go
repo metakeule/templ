@@ -3,7 +3,6 @@ package templ
 import (
 	"bytes"
 	"fmt"
-	"github.com/metakeule/meta"
 	"github.com/metakeule/replacer"
 	"io"
 	"reflect"
@@ -66,7 +65,7 @@ func (str *View) Set(stru interface{}) (ss []Setter) {
 		panic(fmt.Sprintf("wrong type: %T, needed %s or *%s", stru, str._type, str._type))
 	}
 	for field, ph := range str._placeholders {
-		f := meta.Struct.Field(stru, field)
+		f := _Field(stru, field)
 		// we need to handle the nil pointers differently,
 		// since they may be handled via interfaces
 		// and then they are not nil
@@ -81,7 +80,7 @@ func (str *View) Set(stru interface{}) (ss []Setter) {
 
 func (str *View) scanPlaceholders(stru interface{}, escaper Escaper) {
 	str._placeholders = map[string]Placeholder{}
-	meta.Struct.EachRaw(stru,
+	_EachRaw(stru,
 		func(field reflect.StructField, v reflect.Value) {
 			phName := fieldName(stru, field.Name, str._tag)
 			ph := NewPlaceholder(phName)
