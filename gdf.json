@@ -1,5 +1,4 @@
 {
-  "Path": "github.com/metakeule/templ",
   "Exports": {
     "*Buffer.Name": "(*Buffer) Name() string",
     "*Template.Add": "(*Template) Add(...interface{}) error",
@@ -27,29 +26,31 @@
     "*View.Set": "(*View) Set(interface{}) []Setter",
     "*View.Tag": "(*View) Tag() string",
     "*View.Type": "(*View) Type() string",
-    "Buffer": "type Buffer struct {;   *bytes.Buffer;}",
+    "Buffer": "type Buffer struct { *bytes.Buffer}",
     "Escaper": "type Escaper map[string](interface{}) string",
     "Escaper.View": "(Escaper) View(interface{},string) *View",
-    "New": "New(string) *Template",
-    "NewPlaceholder": "NewPlaceholder(string,...func(interface{}) string) Placeholder",
-    "Placeholder": "type Placeholder struct {;  Escaper [](interface{}) string;  Value string;}",
+    "New": "func (string) *Template",
+    "NewPlaceholder": "func (string,...func(interface{}) string) Placeholder",
+    "Placeholder": "type Placeholder struct {Escaper [](interface{}) string; Value string}",
     "Placeholder.Name": "(Placeholder) Name() string",
     "Placeholder.Set": "(Placeholder) Set(interface{}) Setter",
     "Placeholder.Setf": "(Placeholder) Setf(string,...interface{}) Setter",
     "Placeholder.WriteTo": "(Placeholder) WriteTo(io.Writer)(int64,error)",
-    "Setter": "type Setter interface {;  Name() string;  io.WriterTo;}",
-    "Template": "type Template struct {;   *github.com/metakeule/replacer#Replacer;}",
-    "View": "type View struct{}"
+    "Setter": "type Setter interface {Name() string; io.WriterTo}",
+    "Template": "type Template struct { *github.com/metakeule/replacer.Replacer}",
+    "View": "type View struct{}",
+    "init": ""
   },
   "Imports": {
-    "github.com/metakeule/replacer#*Replacer.Delimiter": "(*Replacer) Delimiter() []byte",
-    "github.com/metakeule/replacer#*Replacer.MustParse": "(*Replacer) MustParse([]byte) *Replacer",
-    "github.com/metakeule/replacer#*Replacer.Parse": "(*Replacer) Parse([]byte) error",
-    "github.com/metakeule/replacer#*Replacer.Replace": "(*Replacer) Replace(*bytes.Buffer,map[string]string)",
-    "github.com/metakeule/replacer#*Replacer.Set": "(*Replacer) Set(*bytes.Buffer,map[string]io.WriterTo) map[string]error",
-    "github.com/metakeule/replacer#*Replacer.SetDelimiter": "(*Replacer) SetDelimiter(delimiter)",
-    "github.com/metakeule/replacer#New": "New() *Replacer",
-    "github.com/metakeule/replacer#Replacer": "type Replacer struct{}"
+    "github.com/metakeule/replacer.*Replacer.Delimiter": "(*Replacer) Delimiter() []byte",
+    "github.com/metakeule/replacer.*Replacer.MustParse": "(*Replacer) MustParse([]byte) *Replacer",
+    "github.com/metakeule/replacer.*Replacer.Parse": "(*Replacer) Parse([]byte) error",
+    "github.com/metakeule/replacer.*Replacer.Replace": "(*Replacer) Replace(*bytes.Buffer,map[string]string)",
+    "github.com/metakeule/replacer.*Replacer.Set": "(*Replacer) Set(*bytes.Buffer,map[string]io.WriterTo) map[string]error",
+    "github.com/metakeule/replacer.*Replacer.SetDelimiter": "(*Replacer) SetDelimiter(delimiter)",
+    "github.com/metakeule/replacer.New": "func () *Replacer",
+    "github.com/metakeule/replacer.Replacer": "type Replacer struct{}",
+    "github.com/metakeule/replacer.init": ""
   },
-  "InitMd5": ""
+  "Path": "github.com/metakeule/templ"
 }
